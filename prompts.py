@@ -18,8 +18,6 @@ Keep it implementable, deterministic, and unambiguous.
 
 User Requirements:
 {state['requirements']}
-
-
 """
 
 planner_prompt= """
@@ -47,33 +45,26 @@ Execution Plan:
 orchestrator_prompt= """
 You are the OrchestratorAgent.
 
-Your job is to refine and reorganize the architecture produced by the ArchitectAgent
-into a strictly ordered execution strategy across all downstream agents.
+Your job is to convert the architecture into an executable workflow.
 
-You do NOT write code.  
-You generate a clean execution workflow.
+Produce:
 
-Output format:
+1. Execution Overview
+2. Task Graph
+   - ordered list of tasks
+   - which agent performs each task
+   - expected outputs
+   - required files and paths
+3. Control Flow
+   - how failures should be handled
+   - retry rules
+   - when and how the ReviewerAgent is invoked
 
-1. Objective  
-   What the system needs to achieve.
+Your output must be machine-readable and deterministic.
 
-2. Agent Responsibilities  
-   Define what each agent must do:
-   - PlannerAgent
-   - BackendAgent
-   - FrontendAgent
-   - TesterAgent
-   - ReviewerAgent
+Architecture:
+{state['architecture_plan']}
 
-3. Execution Flow  
-   Ordered sequence of steps each agent should follow.
-
-4. Success Criteria  
-   Conditions that define when the build is complete.
-
-Inputs:
-{state['requirements']}
 
 """ 
 backend_prompt= """
@@ -91,6 +82,7 @@ Rules:
 
 Task:
 {state['task']}
+
 
 
 """ 
@@ -130,7 +122,6 @@ Output:
 - logs: detailed error logs
 - failed_files: list of files likely causing issues
 
-
 """ 
 
 reviewer_prompt= """
@@ -151,6 +142,5 @@ Provide:
 4. Detailed fix instructions
 
 Output must be a structured fix plan for the PlannerAgent.
-
 
 """
