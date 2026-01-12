@@ -9,19 +9,16 @@ def write_file(file_path: str, content: str):
     Writes content to a file inside ./builds/.
     Auto-creates missing directories.
     """
-    # Normalize paths
+
     root = os.path.abspath("builds")
     abs_path = os.path.abspath(file_path)
 
-    # Enforce sandbox
     if not abs_path.startswith(root):
         return "Error: write_file is restricted to the ./builds/ directory."
 
     try:
-        # Ensure parent directory exists
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
-        # Write content
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(content)
 

@@ -7,7 +7,6 @@ import json
 
 # --- 1. ARCHITECT ---
 def architect_node(state: AgentState):
-    # DEBUG: Print all keys in the state to see what is missing
     print(f"DEBUG STATE KEYS: {list(state.keys())}") 
     
     print(f"\n🏗️  [Architect] Designing {state['project_root']}...")
@@ -15,7 +14,6 @@ def architect_node(state: AgentState):
     msg = architect_prompt.format(
         project_root=state["project_root"], 
         user_query=state["requirements"],
-        requirements=state["requirements"]  # Fix for KeyError
     )
     response = llm.invoke(msg)
     print(response.content)
@@ -24,7 +22,7 @@ def architect_node(state: AgentState):
 # --- 2. PLANNER ---
 def planner_node(state: AgentState):
     print("\n📅 [Planner] Creating task list...")
-    # Only plan if we have no tasks and haven't started (prevent infinite replanning loops)
+
     if state.get("task_queue") or state.get("completed_tasks"):
         print("   -> Skipping planning (tasks already exist or completed).")
         return {}
@@ -35,7 +33,6 @@ def planner_node(state: AgentState):
     )
     response = llm.invoke(msg)
     
-    # Parsing logic (simplified for brevity)
     try:
         content = response.content.replace("```json", "").replace("```", "").strip()
         tasks = json.loads(content)
@@ -56,8 +53,7 @@ def orchestrator_node(state: AgentState):
     """
     queue = state.get("task_queue", [])
     status = state.get("test_status", "pending")
-    
-    # Logging for visibility
+
     if queue:
         print(f"\n👮 [Orchestrator] {len(queue)} tasks pending. Next: {queue[0]['assigned_agent']}...")
     elif status == "pending":
@@ -97,8 +93,7 @@ def backend_agent_node(state: AgentState):
         project_root=state["project_root"]
     )
     result = llm_worker.invoke(msg)
-    
-    # NEW: Execute the tool calls
+
     execute_tools(result)
     
     return {
@@ -116,8 +111,7 @@ def frontend_agent_node(state: AgentState):
         project_root=state["project_root"]
     )
     result = llm_worker.invoke(msg)
-    
-    # NEW: Execute the tool calls
+
     execute_tools(result)
     
     return {
@@ -130,13 +124,11 @@ def tester_node(state: AgentState):
     print("\n🧪 [Tester] Verifying application...")
     msg = tester_prompt_template.format(project_root=state["project_root"])
     
-    # Use llm_worker to ensure tools are available
+
     response = llm_worker.invoke(msg)
-    
-    # NEW: Execute the tool calls (e.g., run_shell_command)
+
     execute_tools(response)
-    
-    # Logic to capture logs from the response content or tool output
+
     logs = response.content
     
     status = "passed"
@@ -157,12 +149,11 @@ def debugger_node(state: AgentState):
         content = response.content.replace("```json", "").replace("```", "").strip()
         fix_task = json.loads(content)
         print(f"   -> Created Fix Task: {fix_task['description']}")
-        
-        # Add the fix task to the FRONT of the queue to be executed immediately
+
         return {
             "task_queue": [fix_task] + state["task_queue"],
             "iteration_count": state["iteration_count"] + 1,
-            "test_status": "pending" # Reset status to force re-test
+            "test_status": "pending" 
         }
     except:
         return {"iteration_count": state["iteration_count"] + 1}
@@ -173,8 +164,7 @@ def select_next_step(state: AgentState):
     based on the current state (queue, test status, etc.).
     """
     queue = state.get("task_queue", [])
-    
-    # 1. If there are tasks in the queue, route to the assigned agent
+
     if queue:
         next_task = queue[0]
         agent_type = next_task.get("assigned_agent", "backend")
@@ -184,31 +174,26 @@ def select_next_step(state: AgentState):
         elif agent_type == "backend":
             return "backend"
         else:
-            # Fallback if unknown agent
             return "backend"
-    
-    # 2. If queue is empty, check if we need to run tests
+
     test_status = state.get("test_status", "pending")
     if test_status == "pending":
         return "tester"
-    
-    # 3. If tests failed, route to debugger (unless we've retried too many times)
+
     if test_status == "failed":
         iteration = state.get("iteration_count", 0)
         if iteration >= 5:
             print("\n❌ [Orchestrator] Max retries (5) reached. Stopping workflow.")
-            return END # Stop the graph
+            return END 
         
         return "debugger"
-        
-    # 4. If tests passed and queue is empty, we are done!
+
     if test_status == "passed":
         print("\n✅ [Orchestrator] Workflow completed successfully!")
         return END
 
     return END
 
-# --- Workflow Definition ---
 workflow = StateGraph(AgentState)
 
 # Add Nodes
@@ -220,17 +205,14 @@ workflow.add_node("frontend", frontend_agent_node)
 workflow.add_node("tester", tester_node)
 workflow.add_node("debugger", debugger_node)
 
-# Set Entry Point
 workflow.set_entry_point("architect")
 
-# Linear Flow: Architect -> Planner -> Orchestrator
 workflow.add_edge("architect", "planner")
 workflow.add_edge("planner", "orchestrator")
 
-# Conditional Flow from Orchestrator
 workflow.add_conditional_edges(
-    "orchestrator",       # Start at Orchestrator
-    select_next_step,     # Run this function to decide where to go
+    "orchestrator",   
+    select_next_step,    
     {
         "backend": "backend",
         "frontend": "frontend",
@@ -240,11 +222,9 @@ workflow.add_conditional_edges(
     }
 )
 
-# Return loops
 workflow.add_edge("backend", "orchestrator")
 workflow.add_edge("frontend", "orchestrator")
-workflow.add_edge("debugger", "orchestrator") # After creating fix, go back to dispatch it
-workflow.add_edge("tester", "orchestrator")   # After testing, go back to let Orchestrator decide (End or Debug)
-
+workflow.add_edge("debugger", "orchestrator") 
+workflow.add_edge("tester", "orchestrator") 
 # Compile
 app = workflow.compile()
