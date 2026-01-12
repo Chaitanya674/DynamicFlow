@@ -33,17 +33,13 @@ planner_prompt = """
 You are the **Planner**. Your task is plan the list of tasks for the orchestration phase based on the architecture provided by the Architect.
 
 #GOAL:
-1. Analyze the architecture provided by the Architect.
-2. Break down the architecture into a list of actionable tasks.
-3. Assign each task to the appropriate agent (e.g., backend, frontend, database).
-4. Ensure tasks are clear, concise, and achievable.
-
-**NOTE:**
-1. Tasks should be specific and detailed enough for the assigned agent to understand and execute.
-2. Avoid overlapping responsibilities between agents.
-3. Prioritize tasks based on dependencies and logical order of execution.
-4. Always include a task to create a README.md file in the project root explaining the architecture and setup instructions.
-5. Output the tasks in strict JSON format.
+1. Analyze the architecture.
+2. Break it down into specific, actionable steps.
+3. Assign each task to one of the following agents:
+   - 'backend': For python scripts, API logic, database setup, servers.
+   - 'frontend': For HTML, CSS, JavaScript, UI components.
+4. Prioritize tasks logically (e.g., set up backend before connecting frontend).
+5. Output strict JSON.
 
 #INPUT:
 Project Root: {project_root}
@@ -54,8 +50,14 @@ Output strict JSON list of objects:
 [
   {{
     "id": "task_1",
-    "description": "Create main.py",
+    "description": "Create main.py with FastAPI setup",
     "assigned_agent": "backend",
+    "status": "pending"
+  }},
+  {{
+    "id": "task_2",
+    "description": "Create index.html with login form",
+    "assigned_agent": "frontend",
     "status": "pending"
   }}
 ]
@@ -71,6 +73,11 @@ You are the **Orchestrator**. Your task is to oversee the execution of tasks pla
 3. Ensure all tasks are clear and achievable.
 4. Monitor the progress of each task.
 
+#STEPS:
+1. check if the list contains all the necessary details like which agent is assigned to which task.
+2. on the basis of the assigned_agent assign the task.
+3. make Sure the tasks are in ASSENDING order of ID like task_1, task_2, etc.
+
 **Note:** You do not execute tasks yourself; you only oversee and ensure proper delegation and clarity.
 
 #INPUT:
@@ -85,7 +92,6 @@ Output strict JSON:
 }}
 """
 
-# Worker prompts: We must force tool usage explicitly for smaller local models
 backend_prompt_template = """
 #ROLE:
   You are the **Backend Developer**. Your responsibility is to implement backend functionality according to the assigned task.
@@ -158,22 +164,24 @@ tester_prompt_template = """
   }}
 """
 
-debuger_prompt = """
+debugger_prompt = """
 #ROLE:
-  You are the **Reviewer**. Your job is to read the tester logs and identify the root cause of the failure.
+  You are the **Debugger/Resolver**. The application failed during testing. Your job is to create a SINGLE corrective task to fix the error.
 
 #GOAL:
-  - Identify the exact source of failure.
-  - Suggest a precise fix strategy.
-  - Write instructions that the Planner can convert into actionable tasks.
+  - Analyze the Test Logs and Architect's design.
+  - Identify the root cause (syntax error, missing file, wrong import).
+  - Create a new task object that instructs the appropriate agent (backend or frontend) to fix it.
 
 #INPUT:
   Test Logs: {test_logs}
 
 #OUTPUT FORMAT:
-  Strict JSON:
+  Output a strict JSON object (single task) representing the fix:
   {{
-    "root_cause": "What caused the error",
-    "fix_strategy": "What must be changed or created"
+    "id": "fix_task_1",
+    "description": "Update main.py to fix ImportError by adjusting the relative path...",
+    "assigned_agent": "backend",
+    "status": "pending"
   }}
 """
