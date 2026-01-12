@@ -1,8 +1,0 @@
-google-adk
-google-genai
-atlassian-python-api
-python-dotenv
-requests
-markdown
-aiosqlite
-sqlalchemy
