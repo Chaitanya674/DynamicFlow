@@ -1,6 +1,4 @@
 DynamicFlow:
-Subject: README.md for DynamicFlow
-
 # DynamicFlow
 
 DynamicFlow is a modular, fully automated multi-agent development pipeline designed to generate, scaffold, and build complete software applications from a single user request. It orchestrates multiple AI agents, tool functions, and structured prompts to transform a plain-text app idea into a working project with backend, frontend, and optional database layers.
