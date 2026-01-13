@@ -1,7 +1,8 @@
 import json
 from prompts import *
-from state import AgentState
+from state import AgentState, WorkerState
 from langgraph.graph import StateGraph, END
+from langgraph.types import Send
 from tools import llm, llm_worker, write_file, read_file, run_shell_command
 import json
 
@@ -83,10 +84,11 @@ def execute_tools(ai_msg):
                 print(f"   🛠️  Executing Tool: {tool_name} with args: {tool_args}")
                 selected_tool.invoke(tool_args)
 
-# --- 4. BACKEND AGENT ---
-def backend_agent_node(state: AgentState):
-    task = state["task_queue"][0]
-    print(f"\n⚙️  [Backend] Working on: {task['description']}")
+# --- 4. BACKEND WORKER (Parallel Execution) ---
+def backend_worker(state: WorkerState):
+    """Worker that executes a single backend task in parallel"""
+    task = state["task"]
+    print(f"\n⚙️  [Backend Worker] Working on: {task['description'][:60]}...")
     
     msg = backend_prompt_template.format(
         task_description=task["description"],
@@ -96,15 +98,18 @@ def backend_agent_node(state: AgentState):
 
     execute_tools(result)
     
-    return {
-        "completed_tasks": [task],
-        "task_queue": state["task_queue"][1:]
-    }
+    # Mark task as completed
+    task_completed = task.copy()
+    task_completed["status"] = "completed"
+    
+    # Return to be merged with main state via operator.add
+    return {"completed_tasks": [task_completed]}
 
-# --- 5. FRONTEND AGENT ---
-def frontend_agent_node(state: AgentState):
-    task = state["task_queue"][0]
-    print(f"\n🎨 [Frontend] Working on: {task['description']}")
+# --- 5. FRONTEND WORKER (Parallel Execution) ---
+def frontend_worker(state: WorkerState):
+    """Worker that executes a single frontend task in parallel"""
+    task = state["task"]
+    print(f"\n🎨 [Frontend Worker] Working on: {task['description'][:60]}...")
     
     msg = frontend_prompt_template.format(
         task_description=task["description"],
@@ -114,10 +119,12 @@ def frontend_agent_node(state: AgentState):
 
     execute_tools(result)
     
-    return {
-        "completed_tasks": [task],
-        "task_queue": state["task_queue"][1:]
-    }
+    # Mark task as completed
+    task_completed = task.copy()
+    task_completed["status"] = "completed"
+    
+    # Return to be merged with main state via operator.add
+    return {"completed_tasks": [task_completed]}
 
 # --- 6. TESTER ---
 def tester_node(state: AgentState):
@@ -140,6 +147,36 @@ def tester_node(state: AgentState):
 
     return {"test_logs": logs, "test_status": status}
 
+# --- 7. SYNTHESIZER (Collect Results from Parallel Workers) ---
+def synthesizer_node(state: AgentState):
+    """Synthesizes all completed tasks into a final report"""
+    print("\n🔗 [Synthesizer] Compiling results from all workers...")
+    
+    completed_tasks = state.get("completed_tasks", [])
+    
+    if not completed_tasks:
+        print("   -> No tasks completed yet.")
+        return {"final_report": "No tasks completed"}
+    
+    # Create a summary report
+    report_sections = []
+    backend_tasks = [t for t in completed_tasks if t.get("assigned_agent") == "backend"]
+    frontend_tasks = [t for t in completed_tasks if t.get("assigned_agent") == "frontend"]
+    
+    report_sections.append(f"✅ Total Tasks Completed: {len(completed_tasks)}")
+    report_sections.append(f"   - Backend: {len(backend_tasks)} tasks")
+    report_sections.append(f"   - Frontend: {len(frontend_tasks)} tasks")
+    report_sections.append("\nCompleted Tasks:")
+    
+    for i, task in enumerate(completed_tasks, 1):
+        report_sections.append(f"{i}. [{task.get('assigned_agent', 'unknown').upper()}] {task.get('description', 'No description')[:80]}...")
+    
+    final_report = "\n".join(report_sections)
+    print(final_report)
+    
+    return {"final_report": final_report, "task_queue": []}
+
+# --- 8. DEBUGGER ---
 def debugger_node(state: AgentState):
     print("\n🐞 [Debugger] Analyzing errors and creating fix...")
     msg = debugger_prompt.format(test_logs=state["test_logs"])
@@ -151,48 +188,71 @@ def debugger_node(state: AgentState):
         print(f"   -> Created Fix Task: {fix_task['description']}")
 
         return {
-            "task_queue": [fix_task] + state["task_queue"],
+            "task_queue": [fix_task],
             "iteration_count": state["iteration_count"] + 1,
-            "test_status": "pending" 
+            "test_status": "pending",
+            "completed_tasks": []  # Reset for re-execution
         }
     except:
         return {"iteration_count": state["iteration_count"] + 1}
 
-def select_next_step(state: AgentState):
+# --- 9. ASSIGN WORKERS (Send API for Parallel Distribution) ---
+def assign_workers(state: AgentState):
     """
-    This function determines which node to visit next 
-    based on the current state (queue, test status, etc.).
+    Conditional edge function that uses Send() to distribute tasks to workers in parallel.
+    Each Send() creates a worker node execution with its own WorkerState.
     """
     queue = state.get("task_queue", [])
-
-    if queue:
-        next_task = queue[0]
-        agent_type = next_task.get("assigned_agent", "backend")
+    
+    if not queue:
+        # No tasks to assign, move to synthesizer
+        print("\n👮 [Orchestrator] No tasks in queue, moving to synthesis...")
+        return "synthesizer"
+    
+    print(f"\n👮 [Orchestrator] Distributing {len(queue)} tasks to workers in parallel...")
+    
+    # Create a Send() for each task to enable parallel execution
+    sends = []
+    for task in queue:
+        agent_type = task.get("assigned_agent", "backend")
+        
+        # Create worker state with task and project_root
+        worker_state = {
+            "task": task,
+            "project_root": state["project_root"]
+        }
         
         if agent_type == "frontend":
-            return "frontend"
-        elif agent_type == "backend":
-            return "backend"
+            sends.append(Send("frontend_worker", worker_state))
         else:
-            return "backend"
+            sends.append(Send("backend_worker", worker_state))
+    
+    return sends
 
+# --- 10. TEST DECISION ---
+def test_decision(state: AgentState):
+    """
+    Determines next step after testing.
+    """
     test_status = state.get("test_status", "pending")
-    if test_status == "pending":
-        return "tester"
 
     if test_status == "failed":
         iteration = state.get("iteration_count", 0)
         if iteration >= 5:
-            print("\n❌ [Orchestrator] Max retries (5) reached. Stopping workflow.")
+            print("\n❌ [Test Decision] Max retries (5) reached. Stopping workflow.")
             return END 
         
         return "debugger"
 
     if test_status == "passed":
-        print("\n✅ [Orchestrator] Workflow completed successfully!")
+        print("\n✅ [Test Decision] All tests passed! Workflow completed successfully!")
         return END
 
     return END
+
+# =============================================================================
+# BUILD WORKFLOW GRAPH WITH PARALLEL WORKERS
+# =============================================================================
 
 workflow = StateGraph(AgentState)
 
@@ -200,31 +260,46 @@ workflow = StateGraph(AgentState)
 workflow.add_node("architect", architect_node)
 workflow.add_node("planner", planner_node)
 workflow.add_node("orchestrator", orchestrator_node)
-workflow.add_node("backend", backend_agent_node)
-workflow.add_node("frontend", frontend_agent_node)
+
+# Parallel workers (use WorkerState)
+workflow.add_node("backend_worker", backend_worker)
+workflow.add_node("frontend_worker", frontend_worker)
+
+# Synthesis and testing
+workflow.add_node("synthesizer", synthesizer_node)
 workflow.add_node("tester", tester_node)
 workflow.add_node("debugger", debugger_node)
 
+# Entry point
 workflow.set_entry_point("architect")
 
+# Planning phase (sequential)
 workflow.add_edge("architect", "planner")
 workflow.add_edge("planner", "orchestrator")
 
+# Parallel task distribution using Send() API
 workflow.add_conditional_edges(
-    "orchestrator",   
-    select_next_step,    
-    {
-        "backend": "backend",
-        "frontend": "frontend",
-        "tester": "tester",
-        "debugger": "debugger",
-        END: END
-    }
+    "orchestrator",
+    assign_workers,  # Returns list of Send() or "synthesizer"
+    ["backend_worker", "frontend_worker", "synthesizer"]
 )
 
-workflow.add_edge("backend", "orchestrator")
-workflow.add_edge("frontend", "orchestrator")
-workflow.add_edge("debugger", "orchestrator") 
-workflow.add_edge("tester", "orchestrator") 
-# Compile
+# Both workers flow to synthesizer
+workflow.add_edge("backend_worker", "synthesizer")
+workflow.add_edge("frontend_worker", "synthesizer")
+
+# Testing phase
+workflow.add_edge("synthesizer", "tester")
+
+# Test result decision
+workflow.add_conditional_edges(
+    "tester",
+    test_decision,
+    {"debugger": "debugger", END: END}
+)
+
+# Debugger re-plans and goes back to orchestrator
+workflow.add_edge("debugger", "orchestrator")
+
+# Compile the workflow
 app = workflow.compile()

@@ -1,33 +1,25 @@
 import os
-from state import AgentState
-from langgraph.graph import StateGraph, END
-from tools import llm, llm_worker
-from workflow import app 
+from workflow import app
 
 os.makedirs("./builds", exist_ok=True)
 
 inputs = {
-    "requirements": "Create a simple To-Do List web app. "
-                    "Backend: Python FastAPI with 2 endpoints (GET /tasks, POST /tasks). "
-                    "Frontend: A single HTML file that fetches tasks from the API and displays them. "
-                    "Database: Use a simple JSON file (tasks.json) for storage.",
-    
-    "project_root": "./builds/todo-app",
-
+    "requirements": "Create me a Simple HTML AND JavaScript based calculator that can perform addition, subtraction, multiplication, and division.",
+    "project_root": "./builds/app-calculator",
     "architecture": None,
     "task_queue": [],
     "completed_tasks": [],
     "current_task": None,
     "test_logs": None,
     "test_status": "pending",
-    "iteration_count": 0
+    "iteration_count": 0,
+    "final_report": None
 }
 
 try:
-    # app.invoke returns the FINAL state after the graph finishes
     final_state = app.invoke(
         inputs, 
-        config={"recursion_limit": 50} # Safety limit for loops
+        config={"recursion_limit": 50}
     )
 
     # 4. Report Final Results
