@@ -122,6 +122,37 @@ Each agent operates under strict JSON outputs, tool restrictions, and directory 
 
 ---
 
+## ⚡ Quick Start
+
+```python
+# 1. Import the main workflow
+from workflow import run_workflow
+
+# 2. Define your app idea
+app_idea = "Build a todo app with user authentication and dark mode"
+
+# 3. Run DynamicFlow
+result = run_workflow(app_idea)
+
+# 4. Your complete app is generated in ./builds/<app-name>/
+```
+
+---
+
+## 🔄 Complete Project Flow
+
+1. **Input** → User provides app description
+2. **Architecture** → System Architect designs the system
+3. **Planning** → Planner converts design into ordered tasks
+4. **Orchestration** → Orchestrator manages execution
+5. **Development** → Backend & Frontend agents generate code
+6. **Testing** → QA Tester runs and validates
+7. **Debugging** → Debugger fixes issues (if any)
+8. **Loop** → Continues until all tasks succeed
+9. **Output** → Complete working application in `./builds/<app-name>/`
+
+---
+
 ## 🧩 Key Features
 
 ### **1. Multi-Agent Collaboration**
@@ -245,9 +276,130 @@ DynamicFlow is modular; you can add:
 
 ---
 
+## 📂 Project Structure
+
+```
+DynamicFlow/
+├── __init__.py                 # Package initialization
+├── __pycache__/               # Python cache
+├── main.py                    # Main entry point
+├── workflow.py                # Orchestration workflow
+├── state.py                   # Application state management
+├── prompts.py                 # Agent prompt templates
+├── tools.py                   # Tool functions (write_file, run_shell_command)
+├── experiments.ipynb          # Experimental notebooks
+├── README.md                  # Documentation
+├── builds/                    # Generated applications directory
+│   ├── app-calculator/        # Example: Calculator app
+│   │   ├── index.html
+│   │   ├── script.js
+│   │   ├── style.css
+│   │   └── README.md
+│   └── todo-app/              # Example: Todo app
+│       ├── backend/
+│       ├── frontend/
+│       └── README.md
+└── demo/                      # Demo files
+```
+
+---
+
+## 🎯 Use Cases
+
+- **Rapid Prototyping**: Build proof-of-concepts in minutes
+- **Full-Stack Development**: Generate complete applications automatically
+- **Learning & Experimentation**: Understand multi-agent AI systems
+- **Iterative Development**: Quickly iterate on features and fixes
+- **Automated Testing**: Built-in QA and debugging workflows
+
+---
+
+## 🔌 Integration Points
+
+DynamicFlow can be extended with:
+
+- Additional AI models and providers
+- Custom databases and ORMs
+- Third-party APIs and services
+- Advanced testing frameworks
+- Custom deployment pipelines
+
+---
+
 ## ⚠️ Safety & Constraints
 
 * All generated files must stay inside `./builds/`.
 * Agents must not output raw code in chat.
 * All agent-to-tool communication is strictly validated.
 * Output must remain deterministic and in JSON.
+---
+
+## 📝 File Reference
+
+| File | Purpose |
+|------|---------|
+| [main.py](main.py) | Entry point for running DynamicFlow |
+| [workflow.py](workflow.py) | Orchestration logic and pipeline management |
+| [state.py](state.py) | Application state and data management |
+| [prompts.py](prompts.py) | LLM prompt templates for all agents |
+| [tools.py](tools.py) | Tool implementations (file writing, shell commands) |
+| [experiments.ipynb](experiments.ipynb) | Interactive experimentation notebook |
+
+---
+
+## 🚀 Getting Started
+
+1. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Run DynamicFlow**
+   ```bash
+   python main.py
+   ```
+
+3. **Check Generated Output**
+   ```bash
+   ls -la builds/
+   ```
+
+---
+
+## 💡 Key Concepts
+
+### **Deterministic Task Execution**
+Tasks are ordered and executed sequentially, ensuring dependencies are met before proceeding.
+
+### **Strict Tool Usage**
+Agents use only assigned tools with validated inputs/outputs to prevent security issues and hallucinations.
+
+### **Self-Healing Pipeline**
+If code fails, the debugger automatically creates fix tasks that are re-inserted into the queue.
+
+### **Modular Architecture**
+Each agent is independent and can be swapped or extended without affecting others.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Areas for enhancement:
+
+- Additional backend/frontend frameworks
+- Improved error detection and recovery
+- New agent types (DevOps, ML Engineer, etc.)
+- Database schema generation
+- Deployment automation
+
+---
+
+## 📄 License
+
+This project is part of the 5-Day Agentic AI series. See LICENSE file for details.
+
+---
+
+## 📞 Support
+
+For issues, questions, or suggestions, please refer to the main project documentation.
