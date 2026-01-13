@@ -1,9 +1,95 @@
-DynamicFlow:
 # DynamicFlow
 
-DynamicFlow is a modular, fully automated multi-agent development pipeline designed to generate, scaffold, and build complete software applications from a single user request. It orchestrates multiple AI agents, tool functions, and structured prompts to transform a plain-text app idea into a working project with backend, frontend, and optional database layers.
+A modular, fully automated multi-agent development pipeline that transforms plain-text app descriptions into complete, working software applications with integrated backend, frontend, and optional database layers.
 
-This system is designed for flexibility, scalability, and extensibility, especially for building rapid prototypes, full-stack applications, and iterative development workflows.
+**DynamicFlow** orchestrates multiple AI agents, tool functions, and structured prompts to handle the entire development lifecycle—from architecture design to code generation, testing, and debugging—enabling rapid prototyping and full-stack application development without manual coding.
+
+---
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         USER INPUT (App Idea)                           │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+        ┌────────────────────────────────────────────┐
+        │      System Architect Agent                │
+        │  • Interprets requirements                 │
+        │  • Designs high-level architecture         │
+        │  • Recommends frameworks & tools           │
+        │  • Plans directory structure               │
+        └────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+        ┌────────────────────────────────────────────┐
+        │      Planner Agent                         │
+        │  • Converts architecture to tasks          │
+        │  • Creates ordered task list               │
+        │  • Assigns backend/frontend tasks          │
+        └────────┬─────────────────────────────────────┘
+                 │
+                 ▼
+        ┌────────────────────────────────────────────┐
+        │      Orchestrator Agent                    │
+        │  • Manages execution pipeline              │
+        │  • Ensures task ordering                   │
+        │  • Maintains workflow consistency          │
+        └────────┬─────────────────────────────────────┘
+                 │
+         ┌───────┴──────────┐
+         │                  │
+         ▼                  ▼
+    ┌─────────────┐   ┌──────────────────┐
+    │  Backend    │   │  Frontend        │
+    │  Developer  │   │  Developer       │
+    │  Agent      │   │  Agent           │
+    │             │   │                  │
+    │ • Generates │   │ • Generates UI   │
+    │   server    │   │ • Creates        │
+    │   code      │   │   components     │
+    │ • Creates   │   │ • Builds styling │
+    │   APIs      │   │ • Implements     │
+    │ • Sets up   │   │   logic          │
+    │   database  │   │                  │
+    └──────┬──────┘   └────────┬─────────┘
+           │                   │
+           └────────┬──────────┘
+                    │
+                    ▼
+        ┌────────────────────────────────────────────┐
+        │      QA Tester Agent                       │
+        │  • Runs the application                    │
+        │  • Captures logs & errors                  │
+        │  • Validates functionality                 │
+        └────────┬─────────────────────────────────────┘
+                 │
+           ┌─────┴──────┐
+           │            │
+        Success      Error
+           │            │
+           │            ▼
+           │   ┌────────────────────────────────┐
+           │   │  Debugger/Resolver Agent       │
+           │   │  • Analyzes errors             │
+           │   │  • Creates repair tasks        │
+           │   │  • Feeds back to pipeline      │
+           │   └─────────┬──────────────────────┘
+           │             │
+           │             └──────┐
+           │                    │
+           └────────┬───────────┘
+                    │
+                    ▼
+        ┌────────────────────────────────────────────┐
+        │    WORKING APPLICATION                     │
+        │    📁 builds/<app-name>/                   │
+        │    ├── backend/                            │
+        │    ├── frontend/                           │
+        │    └── README.md                           │
+        └────────────────────────────────────────────┘
+```
 
 ---
 
